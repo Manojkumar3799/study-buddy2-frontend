@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { askQuestionStream } from "@/lib/api";
 import type { ChatMessage, WebSource } from "@/lib/types";
+import { useAuth } from "@/context/AuthContext";
 
 interface ChatInterfaceProps {
   documentId: string;
@@ -14,6 +15,7 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
   const [input, setInput] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { session } = useAuth();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,6 +33,8 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
       { role: "user", content: question },
       { role: "assistant", content: "", isStreaming: true },
     ]);
+
+    const token = session?.access_token;
 
     await askQuestionStream(
       documentId,
@@ -84,7 +88,8 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
           setIsAsking(false);
         },
       },
-      "auto" // default mode — LLM decides
+      "auto", // default mode — LLM decides
+      token
     );
   };
 
@@ -96,19 +101,19 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
   };
 
   return (
-    <div className="flex w-full max-w-2xl flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
+    <div className="flex w-full max-w-2xl flex-col rounded-2xl border border-slate-800 bg-slate-900/50 shadow-2xl backdrop-blur-xl transition-all duration-300">
       {/* Header */}
-      <div className="border-b border-slate-200 px-4 py-3">
-        <p className="font-medium text-slate-800">{documentName}</p>
+      <div className="border-b border-slate-800/80 px-5 py-4">
+        <p className="font-semibold text-slate-200">{documentName}</p>
         <p className="text-xs text-slate-500">
           Ask anything — answers come from your PDF or live web research
         </p>
       </div>
 
       {/* Messages */}
-      <div className="flex h-96 flex-col gap-4 overflow-y-auto px-4 py-4">
+      <div className="flex h-96 flex-col gap-4 overflow-y-auto px-5 py-5 scrollbar-thin scrollbar-thumb-slate-800">
         {messages.length === 0 && (
-          <p className="text-center text-sm text-slate-400">
+          <p className="my-auto text-center text-sm text-slate-500">
             No questions yet — ask something below.
           </p>
         )}
@@ -120,32 +125,32 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
           >
             {/* Bubble */}
             <div
-              className={`max-w-[85%] rounded-lg px-4 py-2 text-sm ${
+              className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
                 msg.role === "user"
-                  ? "bg-slate-800 text-white"
-                  : "bg-slate-100 text-slate-800"
+                  ? "bg-indigo-600/85 text-slate-100 border border-indigo-500/20"
+                  : "bg-slate-950/60 text-slate-200 border border-slate-850/60"
               }`}
             >
               {msg.content || (msg.isStreaming ? "..." : "")}
               {msg.isStreaming && msg.content && (
-                <span className="ml-1 inline-block h-3 w-1 animate-pulse bg-slate-500" />
+                <span className="ml-1 inline-block h-3.5 w-1 animate-pulse bg-indigo-400" />
               )}
             </div>
 
             {/* Source badges — shown only on assistant messages after streaming finishes */}
             {msg.role === "assistant" && !msg.isStreaming && msg.hasSufficientContext && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-1">
 
                 {/* ---- PDF source label + page badges ---- */}
                 {msg.sourceType === "pdf" && msg.sources && msg.sources.length > 0 && (
                   <>
-                    <span className="flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                      📄 PDF
+                    <span className="flex items-center gap-1 rounded-full bg-indigo-950/60 border border-indigo-800/30 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
+                      📄 PDF Context
                     </span>
                     {msg.sources.map((s) => (
                       <span
                         key={s.chunk_id}
-                        className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600"
+                        className="rounded-full bg-slate-950/40 border border-slate-850 px-2 py-0.5 text-[10px] text-slate-400"
                       >
                         {s.start_page === s.end_page
                           ? `page ${s.start_page}`
@@ -158,22 +163,22 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
                 {/* ---- Web source label + clickable links ---- */}
                 {msg.sourceType === "web" && msg.webSources && msg.webSources.length > 0 && (
                   <>
-                    <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-950/60 border border-emerald-800/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
                       🔬 Web Research
                     </span>
-                    <div className="mt-1 flex w-full flex-col gap-1">
+                    <div className="mt-1.5 flex w-full flex-col gap-1">
                       {msg.webSources.map((ws: WebSource, idx: number) => (
                         <a
                           key={idx}
                           href={ws.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-baseline gap-1.5 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs transition-colors hover:bg-emerald-100"
+                          className="flex items-baseline gap-1.5 rounded-lg border border-emerald-900/30 bg-slate-950/40 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-950/20 transition-all"
                         >
-                          <span className="truncate font-medium text-emerald-800">
+                          <span className="truncate font-medium text-slate-300">
                             {ws.title}
                           </span>
-                          <span className="ml-auto shrink-0 text-emerald-500">
+                          <span className="ml-auto shrink-0 text-[10px] text-emerald-500 font-semibold uppercase tracking-wider">
                             {ws.domain}
                           </span>
                         </a>
@@ -190,7 +195,7 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
       </div>
 
       {/* Input area */}
-      <div className="flex gap-2 border-t border-slate-200 p-3">
+      <div className="flex gap-2 border-t border-slate-850 p-4 bg-slate-950/20">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -198,12 +203,12 @@ export default function ChatInterface({ documentId, documentName }: ChatInterfac
           placeholder="Ask about the document, or search the web…"
           rows={1}
           disabled={isAsking}
-          className="flex-1 resize-none rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-50"
+          className="flex-1 resize-none rounded-xl border border-slate-850 bg-slate-950/50 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
         />
         <button
           onClick={handleAsk}
           disabled={isAsking || !input.trim()}
-          className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/10 hover:from-indigo-500 hover:to-purple-500 active:scale-[0.98] disabled:opacity-50 transition-all cursor-pointer"
         >
           {isAsking ? "Asking…" : "Ask"}
         </button>

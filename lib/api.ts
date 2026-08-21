@@ -25,12 +25,15 @@ async function parseErrorResponse(res: Response): Promise<string> {
   }
 }
 
-export async function uploadPdf(file: File): Promise<UploadResponse> {
+export async function uploadPdf(file: File, token: string): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
   const res = await fetch(`${API_URL}/upload`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     body: formData,
   });
 
@@ -41,9 +44,12 @@ export async function uploadPdf(file: File): Promise<UploadResponse> {
   return res.json();
 }
 
-export async function storeDocument(documentId: string): Promise<StoreResponse> {
+export async function storeDocument(documentId: string, token: string): Promise<StoreResponse> {
   const res = await fetch(`${API_URL}/store/${documentId}`, {
     method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 
   if (!res.ok) {
@@ -79,11 +85,20 @@ export async function askQuestionStream(
   documentId: string,
   question: string,
   callbacks: StreamAskCallbacks,
-  mode: "auto" | "pdf" | "web" = "auto"
+  mode: "auto" | "pdf" | "web" = "auto",
+  token?: string
 ): Promise<void> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_URL}/ask/${documentId}/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ question, mode }),
   });
 
